@@ -1,0 +1,6 @@
+Backend_n_apis/MedicApp/.env
+Backend_n_apis/MedicApp/Backend/__pycache__/
+Backend_n_apis/MedicApp/Backendapi/__pycache__/
+Backend_n_apis/MedicApp/MedicApp/__pycache__/
+Backend_n_apis/MedicApp/Backend/migrations/__pycache__/
+Backend_n_apis/MedicApp/Backendapi/migrations/__pycache__/
