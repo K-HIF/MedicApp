@@ -1,6 +1,6 @@
 import { useState } from "react";
-import reactLogo from "./assets/medicapp_logo.png";
-import viteLogo from "/medicapp_logo.png";
+
+import viteLogo from "/logo1.png";
 
 function App() {
   const [count, setCount] = useState(0);
@@ -8,10 +8,8 @@ function App() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-900 p-6">
       {/* Logo section */}
-      <div className="flex space-x-6">
-        <a href="https://vite.dev" target="_blank" rel="noopener noreferrer">
-          <img src={viteLogo} className="h-16 w-16" alt="Vite logo" />
-        </a>
+      <div className="flex space-x-2">
+      <img src={viteLogo} className="h-12 w-12" alt="Vite logo" />
       </div>
 
       {/* Title */}
