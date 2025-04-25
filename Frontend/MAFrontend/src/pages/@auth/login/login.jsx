@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ALogin = () => {
+const Login = () => {
   const [formData, setFormData] = useState({
-    username: "",
+    employee_id: "",
     password: "",
   });
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotMessage, setForgotMessage] = useState("");
-  const [forgotError, setForgotError] = useState("");
 
-  
   useEffect(() => {
     const timer = setTimeout(() => {
       setPageLoading(false);
@@ -48,56 +43,20 @@ const ALogin = () => {
         }
       );
 
-      const contentType = response.headers.get("Content-Type");
-      const responseBody = await response.text();
+      const data = await response.json();
 
       if (response.ok) {
-        const { access, refresh } = JSON.parse(responseBody);
-        localStorage.setItem("accessToken", access);
-        localStorage.setItem("refreshToken", refresh);
+        localStorage.setItem("accessToken", data.access);
+        localStorage.setItem("refreshToken", data.refresh);
         navigate("/dashboard");
       } else {
-        let errorMessage = "Error logging in";
-        if (contentType && contentType.includes("application/json")) {
-          const result = JSON.parse(responseBody);
-          errorMessage = result.error || errorMessage;
-        }
-        setError(errorMessage);
+        setError(data.error || "Invalid credentials");
       }
     } catch (err) {
       console.error("Fetch Error:", err);
-      setError("Error logging in");
+      setError("Error logging in. Please try again.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleForgotPasswordSubmit = async (e) => {
-    e.preventDefault();
-    setForgotMessage("");
-    setForgotError("");
-
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/forgot-password/`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email: forgotEmail }),
-        }
-      );
-
-      if (response.ok) {
-        setForgotMessage("A new password has been sent to your email.");
-      } else {
-        const result = await response.json();
-        setForgotError(result.error || "Failed to reset password.");
-      }
-    } catch (err) {
-      console.error("Fetch Error:", err);
-      setForgotError("Failed to reset password.");
     }
   };
 
@@ -114,19 +73,18 @@ const ALogin = () => {
 
   return (
     <div className="flex h-[100vh] overflow-hidden">
-      
+      {/* Left side - Image */}
       <div className="hidden lg:flex lg:w-1/2 relative">
         <img
           src="/homepage.webp"
           alt="Hospital Background"
           className="object-cover w-full h-full"
         />
-        <div className="absolute inset-0 bg-blue-600/20 " />
+        <div className="absolute inset-0 bg-blue-600/20" />
       </div>
 
-      
+      {/* Right side - Form */}
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center bg-white p-8 lg:px-24 overflow-y-auto">
-        
         <div className="mb-8 animate-fade-in">
           <img
             src="/logo1.png"
@@ -137,23 +95,22 @@ const ALogin = () => {
 
         <div className="w-full max-w-md">
           <h2 className="text-3xl font-bold text-gray-900 mb-2 text-center">
-            Welcome Admin
+            Welcome Back
           </h2>
           <p className="text-gray-600 text-center mb-8">
-            Please enter your employee ID and password
+            Please sign in to continue
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="employee_id" className="block text-sm font-medium text-gray-700 mb-2">
                 Employee ID
               </label>
               <input
                 type="text"
-                id="username"
-                name="username"
-                value={formData.username}
+                id="employee_id"
+                name="employee_id"
+                value={formData.employee_id}
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                 placeholder="Enter your employee ID"
@@ -161,7 +118,6 @@ const ALogin = () => {
               />
             </div>
 
-            {/* Password Input */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
@@ -178,28 +134,6 @@ const ALogin = () => {
               />
             </div>
 
-            {/* Remember Me and Forgot Password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
-                  Remember me
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-blue-600 hover:text-blue-500 font-medium"
-              >
-                Forgot Password?
-              </button>
-            </div>
-
-            {/* Enhanced Sign In Button */}
             <button
               type="submit"
               disabled={loading}
@@ -235,60 +169,23 @@ const ALogin = () => {
               )}
             </button>
 
-            
             {error && (
               <div className="text-red-500 text-sm text-center animate-shake">
                 {error}
               </div>
             )}
           </form>
-        </div>
-      </div>
 
-      
-      {showForgotPassword && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-30">
-          <div className="bg-gray-800 p-6 rounded-lg w-1/3">
-            <h2 className="text-white text-lg font-semibold mb-4">
-              Reset Your Password
-            </h2>
-            <form onSubmit={handleForgotPasswordSubmit}>
-              <div className="mb-4">
-                <label
-                  htmlFor="forgot-email"
-                  className="block text-gray-400 mb-2"
-                >
-                  Enter your registered email
-                </label>
-                <input
-                  type="email"
-                  id="forgot-email"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  className="text-gray-100 w-full border border-gray-500 rounded-md py-2 px-3 bg-gray-700 placeholder-gray-500 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400"
-                  placeholder="Enter your email"
-                />
-              </div>
-              <button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-md py-2 px-4 w-full transition duration-300 ease-in-out"
-              >
-                Submit
-              </button>
-            </form>
-            {forgotMessage && <p className="mt-4 text-green-500">{forgotMessage}</p>}
-            {forgotError && <p className="mt-4 text-red-500">{forgotError}</p>}
-            <button
-              onClick={() => setShowForgotPassword(false)}
-              className="mt-4 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-md py-2 px-4 w-full transition duration-300 ease-in-out"
-            >
-              Close
-            </button>
+          <div className="mt-6 text-center">
+            <span className="text-gray-600">Don't have an account? </span>
+            <a href="/register" className="text-blue-600 hover:text-blue-700 font-medium">
+              Register here
+            </a>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
-export default ALogin;
+export default Login;

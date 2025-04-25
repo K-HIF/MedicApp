@@ -23,6 +23,8 @@ from django.core.mail import send_mail
 from Backend.models import Patient
 from django.shortcuts import get_object_or_404
 from django.conf import settings
+import random
+import string
 
 load_dotenv()
 
@@ -51,17 +53,68 @@ def register(request):
         return Response({"detail": "User created successfully!"}, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def registerdr(request):
+    try:
+        data = request.data
+        fname = data['firstName']
+        sname = data['lastName']
+        username = data['employee_id']
+        email = data.get('email')
+        
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "User already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Generate a random password
+        password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        
+        user = User.objects.create(
+            username=username,
+            first_name=fname,
+            last_name=sname,
+            email=email,
+            password=make_password(password)
+        )
+        
+        
+        email_content = f"""
+        Welcome to MedicApp!
+        
+        Your account has been created with the following credentials:
+        Employee ID: {username}
+        Password: {password}
+        
+        Please login using these credentials and change your password after first login.
+        """
+
+        send_mail(
+            'MedicApp Account Created',
+            email_content,
+            'frandelwanjawa19@gmail.com',
+            [email],
+            fail_silently=False,
+        )
+
+        return Response({
+            "detail": "User registered successfully! Check your email for login credentials."
+        }, status=status.HTTP_201_CREATED)
+        
+    except Exception as e:
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def user_login(request):
     try:
         data = request.data
-        
-        username = data.get('username') 
-        password = data.get('password')
         print(data)
+        username = data.get('employee_id') 
+        password = data.get('password')
         
+
         if not username or not password:
             return Response({"detail": "Both employee_id and password are required"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -236,7 +289,7 @@ def send_email(request):
 def verify_admin(request):
     try:
         data = request.data
-        print(data)
+        
 
         employee_id = data.get('employee_id')
         email = data.get('email')
