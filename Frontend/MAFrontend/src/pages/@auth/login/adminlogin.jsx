@@ -44,25 +44,29 @@ const ALogin = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            employee_id: formData.username,
+            password: formData.password
+          }),
         }
       );
 
-      const contentType = response.headers.get("Content-Type");
-      const responseBody = await response.text();
-
+      const data = await response.json();
+      
       if (response.ok) {
-        const { access, refresh } = JSON.parse(responseBody);
-        localStorage.setItem("accessToken", access);
-        localStorage.setItem("refreshToken", refresh);
-        navigate("/dashboard");
-      } else {
-        let errorMessage = "Error logging in";
-        if (contentType && contentType.includes("application/json")) {
-          const result = JSON.parse(responseBody);
-          errorMessage = result.error || errorMessage;
+        if (data.user && data.user.status === 'system_admin') {
+          console.log(data.user.statu);
+          localStorage.setItem("accessToken", data.access);
+          localStorage.setItem("refreshToken", data.refresh);
+          localStorage.setItem("isAuthenticated", "true");
+          localStorage.setItem("userStatus", data.user.status);
+          localStorage.setItem("userEmail", data.user.email);
+          navigate("/admin");
+        } else {
+          setError("Access denied. Admin privileges required.");
         }
-        setError(errorMessage);
+      } else {
+        setError(data.detail || "Invalid credentials");
       }
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -246,9 +250,11 @@ const ALogin = () => {
       </div>
 
       
+      {/* Password Reset Modal */}
       {showForgotPassword && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-30">
-          <div className="bg-gray-800 p-6 rounded-lg w-1/3">
+        <div className="fixed inset-0 flex items-center justify-center z-30">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+          <div className="bg-gray-800 p-6 rounded-lg w-1/3 relative z-50">
             <h2 className="text-white text-lg font-semibold mb-4">
               Reset Your Password
             </h2>

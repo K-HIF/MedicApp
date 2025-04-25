@@ -20,7 +20,8 @@ from datetime import datetime, date
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.core.mail import send_mail
-from Backend.models import Patient
+from Backend.models import Patient, Doctor, Category
+from Backend.serializers import PatientSerializer, DoctorSerializer, CategorySerializer
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 import random
@@ -67,7 +68,7 @@ def registerdr(request):
         if User.objects.filter(username=username).exists():
             return Response({"detail": "User already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Generate a random password
+        
         password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
         
         user = User.objects.create(
@@ -110,7 +111,7 @@ def registerdr(request):
 def user_login(request):
     try:
         data = request.data
-        print(data)
+        
         username = data.get('employee_id') 
         password = data.get('password')
         
@@ -318,3 +319,69 @@ def verify_admin(request):
         return Response({
             "detail": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class DoctorView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        doctors = Doctor.objects.select_related('user').all()
+        serializer = DoctorSerializer(doctors, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        try:
+            doctor = Doctor.objects.get(employee_id=request.data.get('employee_id'))
+            return Response({"detail": "Doctor with this ID already exists"}, status=400)
+        except Doctor.DoesNotExist:
+            serializer = DoctorSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=201)
+            return Response(serializer.errors, status=400)
+
+class CategoryView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+    
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def category_detail(request, pk):
+    try:
+        category = Category.objects.get(pk=pk)
+    except Category.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        serializer = CategorySerializer(category, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        category.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def doctor_stats(request):
+    total_doctors = Doctor.objects.count()
+    active_doctors = Doctor.objects.filter(is_active=True).count()
+    specializations = Doctor.objects.values('specialization').distinct().count()
+    
+    return Response({
+        'total_doctors': total_doctors,
+        'active_doctors': active_doctors,
+        'specializations': specializations
+    })

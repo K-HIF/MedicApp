@@ -1,0 +1,29 @@
+import { Navigate } from 'react-router-dom';
+
+const ProtectedRoute = ({ element }) => {
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true' && 
+                         localStorage.getItem('accessToken');
+
+  const currentPath = window.location.pathname;
+  const isAdminRoute = currentPath.startsWith('/admin');
+  
+  // If not authenticated at all, redirect to login
+  if (!isAuthenticated) {
+    localStorage.clear();
+    return <Navigate to="/" replace />;
+  }
+
+  // For admin routes, check if user has admin status
+  if (isAdminRoute) {
+    const userStatus = localStorage.getItem('userStatus');
+    
+    // If user is not an admin, redirect to normal dashboard
+    if (userStatus !== 'system_admin') {
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  return element;
+};
+
+export default ProtectedRoute;
