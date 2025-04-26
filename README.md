@@ -2,9 +2,18 @@
 
 MedicApp is a comprehensive healthcare management system designed to streamline patient and doctor management. The system allows healthcare administrators to efficiently manage patient records, doctor registrations, and program assignments.
 ## Deployed site url
-Frontend- https://medicapp-l95e.onrender.com/
-Backend- https://medicappbackend.onrender.com/
-
+- **Frontend link**
+```bash
+   https://medicapp-l95e.onrender.com/
+   ```
+- **Backend link**
+```bash
+   https://medicappbackend.onrender.com/
+   ```
+- **Demonstration link**
+```bash
+   https://drive.google.com/drive/folders/1DENR56Hh2cPEI8Gr2xnpvjEwgVl1Tj3N?usp=drive_link
+   ```
 
 ## Features
 
