@@ -43,6 +43,7 @@ const Doctors = () => {
     try {
       const response = await axiosInstance.get('/backendapi/doctors/');
       setDoctors(response.data);
+      console.log(response.data)
       setLoading(false);
     } catch (err) {
       setError(err.response?.data?.detail || "Error fetching doctors");
@@ -83,9 +84,9 @@ const Doctors = () => {
   const startEdit = (doctor) => {
     setEditingDoctor({
       ...doctor,
-      firstName: doctor.user.first_name,
-      lastName: doctor.user.last_name,
-      email: doctor.user.email,
+      firstName: doctor.firstName,
+      lastName: doctor.lastName,
+      email: doctor.email,
     });
     setShowEditModal(true);
   };
@@ -124,9 +125,12 @@ const Doctors = () => {
     setSuccess("");
     
     try {
-      await axiosInstance.post('/backendapi/register-doc/', newDoctor);
+      await axiosInstance.post('/backendapi/register-doc/', {
+        ...newDoctor,
+        is_verified: true 
+      });
       await fetchDoctors();
-      setSuccess("Doctor registered successfully! Waiting for verification.");
+      setSuccess("Doctor registered and verified successfully! Credentials have been sent.");
       setTimeout(() => {
         setNewDoctor({
           firstName: "",
@@ -233,8 +237,10 @@ const Doctors = () => {
             {filteredDoctors.map((doctor) => (
               <tr key={doctor.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">{doctor.employee_id}</td>
-                <td className="px-6 py-4">{`${doctor.user.first_name} ${doctor.user.last_name}`}</td>
-                <td className="px-6 py-4">{doctor.user.email}</td>
+                <td className="px-6 py-4">
+                  {`${doctor.firstName || ''} ${doctor.lastName || ''}`}
+                </td>
+                <td className="px-6 py-4">{doctor.email || 'N/A'}</td>
                 <td className="px-6 py-4">{doctor.specialization || '-'}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-1 text-sm rounded-full ${
@@ -272,7 +278,7 @@ const Doctors = () => {
                       </button>
                     ) : (
                       <button
-                        onClick={() => sendPasswordReset(doctor.employee_id, doctor.user.email)}
+                        onClick={() => sendPasswordReset(doctor.employee_id, doctor.email)}
                         className="text-gray-600 hover:text-gray-800"
                         title="Send password reset email"
                       >

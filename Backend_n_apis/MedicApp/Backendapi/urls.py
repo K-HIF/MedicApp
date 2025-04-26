@@ -17,7 +17,7 @@ urlpatterns = [
     
     # Doctor URLs
     path('doctors/', views.DoctorView.as_view(), name='doctors'),
-    path('doctors/<str:doctor_id>/verify/', views.verify_doctor, name='verify-doctor'),
+    path('doctors/<str:user_id>/verify/', views.verify_user, name='verify-doctor'),  
     path('doctors/stats/', views.doctor_stats, name='doctor-stats'),
     
     # Category URLs
