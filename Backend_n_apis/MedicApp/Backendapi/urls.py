@@ -6,6 +6,7 @@ urlpatterns = [
     # Authentication URLs
     path('login/', views.user_login, name='login'),
     path('register/', views.register, name='register'),
+    path('admin-register/', views.register_admin, name='admin-register'),
     path('register-doc/', views.registerdr, name='register-doc'),
     path('verify-admin/', views.verify_admin, name='verify-admin'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
@@ -29,4 +30,5 @@ urlpatterns = [
     
     # Admin URLs
     path('admin-details/', views.admin_details, name='admin-details'),
+    
 ]
