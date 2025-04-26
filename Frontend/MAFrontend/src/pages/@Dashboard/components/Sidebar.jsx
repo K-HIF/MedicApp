@@ -25,7 +25,7 @@ const Sidebar = ({ isAdmin = false, isOpen, onClose }) => {
       path: '/patients',
     },
     {
-      name: 'Categories',
+      name: 'Health Programs',
       icon: ListBulletIcon,
       path: '/categories',
     },

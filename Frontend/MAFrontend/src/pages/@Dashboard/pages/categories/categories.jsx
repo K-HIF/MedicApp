@@ -13,10 +13,20 @@ const Categories = () => {
   const [newCategory, setNewCategory] = useState({ name: "", description: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    // Clear success/error messages when modals are closed
+    if (!showAddModal && !showEditModal && !showDeleteModal) {
+      setError("");
+      setSuccess("");
+    }
+  }, [showAddModal, showEditModal, showDeleteModal]);
 
   const fetchCategories = async () => {
     try {
@@ -24,7 +34,7 @@ const Categories = () => {
       setCategories(response.data);
       setLoading(false);
     } catch (err) {
-      setError("Error fetching categories");
+      setError("Error fetching health programs");
       setLoading(false);
     }
   };
@@ -45,33 +55,60 @@ const Categories = () => {
   };
 
   const addCategory = async () => {
+    setSubmitLoading(true);
+    setError("");
+    setSuccess("");
+    
     try {
       await axiosInstance.post('/backendapi/categories/', newCategory);
-      fetchCategories();
-      setNewCategory({ name: "", description: "" });
-      setShowAddModal(false);
+      await fetchCategories();
+      setSuccess("Category added successfully!");
+      setTimeout(() => {
+        setNewCategory({ name: "", description: "" });
+        setShowAddModal(false);
+      }, 1500);
     } catch (err) {
       setError(err.response?.data?.detail || "Error adding category");
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
   const editCategory = async () => {
+    setSubmitLoading(true);
+    setError("");
+    setSuccess("");
+    
     try {
       await axiosInstance.put(`/backendapi/categories/${selectedCategory.id}/`, newCategory);
-      fetchCategories();
-      setShowEditModal(false);
+      await fetchCategories();
+      setSuccess("Category updated successfully!");
+      setTimeout(() => {
+        setShowEditModal(false);
+      }, 1500);
     } catch (err) {
       setError(err.response?.data?.detail || "Error updating category");
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
   const deleteCategory = async () => {
+    setSubmitLoading(true);
+    setError("");
+    setSuccess("");
+    
     try {
       await axiosInstance.delete(`/backendapi/categories/${selectedCategory.id}/`);
-      fetchCategories();
-      setShowDeleteModal(false);
+      await fetchCategories();
+      setSuccess("Category deleted successfully!");
+      setTimeout(() => {
+        setShowDeleteModal(false);
+      }, 1500);
     } catch (err) {
       setError(err.response?.data?.detail || "Error deleting category");
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -85,13 +122,13 @@ const Categories = () => {
 
   return (
     <div className="p-8 bg-white rounded-lg shadow-lg">
-      <h2 className="text-3xl font-bold text-gray-800 mb-8">Disease Categories</h2>
+      <h2 className="text-3xl font-bold text-gray-800 mb-8">Health Programs</h2>
 
       {/* Search and Add Button */}
       <div className="flex items-center justify-between mb-6">
         <input
           type="text"
-          placeholder="Search categories..."
+          placeholder="Search programs..."
           value={searchQuery}
           onChange={handleSearchChange}
           className="px-4 py-2 w-1/3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -100,7 +137,7 @@ const Categories = () => {
           onClick={() => setShowAddModal(true)}
           className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
         >
-          Add New Category
+          Add New Program
         </button>
       </div>
 
@@ -142,18 +179,18 @@ const Categories = () => {
         ))}
       </div>
 
-      {/* Add Category Modal */}
-      <Dialog open={showAddModal} onClose={() => setShowAddModal(false)}>
+      {/* Add Program Modal */}
+      <Dialog open={showAddModal} onClose={() => !submitLoading && setShowAddModal(false)}>
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="bg-gradient-to-br from-orange-800 to-red-900 text-white rounded-lg p-6 w-full max-w-md relative z-50">
             <Dialog.Title className="text-xl font-semibold mb-4">
-              Add New Category
+              Add New Program
             </Dialog.Title>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Category Name
+                  Program Name
                 </label>
                 <input
                   type="text"
@@ -177,35 +214,54 @@ const Categories = () => {
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-300 hover:text-white"
+                  onClick={() => !submitLoading && setShowAddModal(false)}
+                  disabled={submitLoading}
+                  className="px-4 py-2 text-gray-300 hover:text-white disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={addCategory}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600"
+                  disabled={submitLoading}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50 flex items-center space-x-2"
                 >
-                  Add Category
+                  {submitLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Adding...</span>
+                    </>
+                  ) : (
+                    "Add Program"
+                  )}
                 </button>
               </div>
+              {error && (
+                <div className="mt-4 text-red-500 text-sm text-center animate-shake">
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div className="mt-4 text-green-500 text-sm text-center animate-fade-in">
+                  {success}
+                </div>
+              )}
             </div>
           </Dialog.Panel>
         </div>
       </Dialog>
 
-      {/* Edit Category Modal */}
-      <Dialog open={showEditModal} onClose={() => setShowEditModal(false)}>
+      {/* Edit Program Modal */}
+      <Dialog open={showEditModal} onClose={() => !submitLoading && setShowEditModal(false)}>
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="bg-gradient-to-br from-orange-800 to-red-900 text-white rounded-lg p-6 w-full max-w-md relative z-50">
             <Dialog.Title className="text-xl font-semibold mb-4">
-              Edit Category
+              Edit Program
             </Dialog.Title>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-200 mb-1">
-                  Category Name
+                  Program Name
                 </label>
                 <input
                   type="text"
@@ -229,52 +285,103 @@ const Categories = () => {
               </div>
               <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 text-gray-300 hover:text-white"
+                  onClick={() => !submitLoading && setShowEditModal(false)}
+                  disabled={submitLoading}
+                  className="px-4 py-2 text-gray-300 hover:text-white disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={editCategory}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600"
+                  disabled={submitLoading}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 disabled:opacity-50 flex items-center space-x-2"
                 >
-                  Save Changes
+                  {submitLoading ? (
+                    <>
+                      <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </button>
               </div>
+              {error && (
+                <div className="mt-4 text-red-500 text-sm text-center animate-shake">
+                  {error}
+                </div>
+              )}
+              {success && (
+                <div className="mt-4 text-green-500 text-sm text-center animate-fade-in">
+                  {success}
+                </div>
+              )}
             </div>
           </Dialog.Panel>
         </div>
       </Dialog>
 
-      {/* Delete Confirmation Modal */}
-      <Dialog open={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
+      {/* Delete Program Modal */}
+      <Dialog open={showDeleteModal} onClose={() => !submitLoading && setShowDeleteModal(false)}>
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         <div className="fixed inset-0 flex items-center justify-center p-4">
           <Dialog.Panel className="bg-gradient-to-br from-orange-800 to-red-900 text-white rounded-lg p-6 w-full max-w-sm relative z-50">
             <Dialog.Title className="text-xl font-semibold mb-4">
-              Delete Category
+              Delete Program
             </Dialog.Title>
             <p className="text-gray-200 mb-6">
-              Are you sure you want to delete this category? This action cannot be
+              Are you sure you want to delete this program? This action cannot be
               undone.
             </p>
             <div className="flex justify-end space-x-3">
               <button
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 text-gray-300 hover:text-white"
+                onClick={() => !submitLoading && setShowDeleteModal(false)}
+                disabled={submitLoading}
+                className="px-4 py-2 text-gray-300 hover:text-white disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={deleteCategory}
-                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+                disabled={submitLoading}
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:opacity-50 flex items-center space-x-2"
               >
-                Delete
+                {submitLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  "Delete"
+                )}
               </button>
             </div>
+            {error && (
+              <div className="mt-4 text-red-500 text-sm text-center animate-shake">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="mt-4 text-green-500 text-sm text-center animate-fade-in">
+                {success}
+              </div>
+            )}
           </Dialog.Panel>
         </div>
       </Dialog>
+
+      {/* Global Messages */}
+      {error && !showAddModal && !showEditModal && !showDeleteModal && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded animate-fade-in">
+          {error}
+        </div>
+      )}
+
+      {success && !showAddModal && !showEditModal && !showDeleteModal && (
+        <div className="fixed bottom-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded animate-fade-in">
+          {success}
+        </div>
+      )}
     </div>
   );
 };

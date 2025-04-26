@@ -60,50 +60,112 @@ def register(request):
 def registerdr(request):
     try:
         data = request.data
-        fname = data['firstName']
-        sname = data['lastName']
-        username = data['employee_id']
+        # Extract data from request
+        employee_id = data.get('employee_id')
         email = data.get('email')
-        
-        if User.objects.filter(username=username).exists():
-            return Response({"detail": "User already exists"}, status=status.HTTP_400_BAD_REQUEST)
+        first_name = data.get('firstName')
+        last_name = data.get('lastName')
+        specialization = data.get('specialization')
 
-        
-        password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        if not all([employee_id, email, first_name, last_name]):
+            return Response({
+                "detail": "All fields are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create user account
+        if User.objects.filter(username=employee_id).exists():
+            return Response({
+                "detail": "A doctor with this employee ID already exists"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate a random password
+        password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
         
         user = User.objects.create(
-            username=username,
-            first_name=fname,
-            last_name=sname,
+            username=employee_id,
             email=email,
+            first_name=first_name,
+            last_name=last_name,
             password=make_password(password)
         )
+
+        # Create doctor profile
+        doctor = Doctor.objects.create(
+            user=user,
+            employee_id=employee_id,
+            specialization=specialization,
+            is_active=False  # New doctors start as unverified
+        )
+
+        # Send login credentials via email
+        try:
+            send_mail(
+                'Your MedicApp Account Credentials',
+                f'Hello {first_name},\n\nYour MedicApp account has been created. Here are your login credentials:\n\nEmployee ID: {employee_id}\nPassword: {password}\n\nPlease log in and change your password.',
+                settings.EMAIL_HOST_USER,
+                [email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Log the error but don't fail the registration
+            print(f"Error sending email: {str(e)}")
+
+        return Response({
+            "detail": "Doctor registered successfully! Waiting for verification."
+        }, status=status.HTTP_201_CREATED)
         
+    except Exception as e:
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_doctor(request, doctor_id):
+    try:
+        doctor = Doctor.objects.select_related('user').get(employee_id=doctor_id)
         
+        # Check if the requesting user is admin
+        admin_id = os.environ.get('AdminCreds')
+        if request.user.username != admin_id:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Get the temporary password
+        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        
+        # Activate the doctor and user
+        doctor.is_active = True
+        doctor.save()
+        
+        doctor.user.is_active = True
+        doctor.user.password = make_password(temp_password)
+        doctor.user.save()
+        
+        # Send the credentials email
         email_content = f"""
         Welcome to MedicApp!
         
-        Your account has been created with the following credentials:
-        Employee ID: {username}
-        Password: {password}
+        Your account has been verified. You can now login with the following credentials:
+        Employee ID: {doctor.employee_id}
+        Password: {temp_password}
         
         Please login using these credentials and change your password after first login.
         """
 
         send_mail(
-            'MedicApp Account Created',
+            'MedicApp Account Verified',
             email_content,
             'frandelwanjawa19@gmail.com',
-            [email],
+            [doctor.user.email],
             fail_silently=False,
         )
 
         return Response({
-            "detail": "User registered successfully! Check your email for login credentials."
-        }, status=status.HTTP_201_CREATED)
+            "detail": "Doctor verified successfully! Credentials have been sent."
+        })
         
+    except Doctor.DoesNotExist:
+        return Response({"detail": "Doctor not found"}, status=404)
     except Exception as e:
-        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": str(e)}, status=500)
     
     
 @api_view(['POST'])
@@ -148,103 +210,134 @@ def user_login(request):
     except Exception as e:
         return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def patient_detail(request, patient_id):
+    """
+    Retrieve detailed information about a specific patient
+    """
+    try:
+        patient = Patient.objects.prefetch_related('categories').get(PatID=patient_id)
+        serializer = PatientSerializer(patient)
+        return Response(serializer.data)
+    except Patient.DoesNotExist:
+        return Response({"detail": "Patient not found"}, status=404)
+    except Exception as e:
+        return Response({"detail": str(e)}, status=500)
+
 class PatientRegistrationView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):
-        try:
-            try:
-                data = request.data
-            except json.JSONDecodeError:
-                return Response({"detail": "Invalid JSON format"}, status=400)
-           
-            FName = data.get('FName')
-            MName = data.get('MName')
-            SName = data.get('SName')
-            pID = data.get('PatID')
-            DOB = data.get('DOB')  
-            city = data.get('city')
-            Category = data.get('Category')
-
-            if not all([FName, MName, SName, pID, DOB, city, Category]):
-                return Response({
-                    "detail": "Missing required fields"
-                }, status=400)
-
-            try:
-                dob_date = datetime.strptime(DOB, '%Y-%m-%d').date()
-            except ValueError:
-                return Response({"detail": "Invalid date format. Use YYYY-MM-DD"}, status=400)
-
-            today = date.today()
-            age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
-            
-            patient = Patient(
-                FName=FName,
-                MName=MName,
-                SName=SName,
-                PatID=pID,
-                Age=age, 
-                DOB=dob_date,
-                city=city,
-                Category=Category
-            )
-            patient.save()
-
-            return Response({'detail': 'Patient registered successfully!', 'id': patient.id}, status=201)
-
-        except Exception as e:
-            return Response({'detail': str(e)}, status=400)
-
     def get(self, request, *args, **kwargs):
         try:
-            patients = Patient.objects.all().values(
-                'id', 'FName', 'MName', 'SName', 'Age', 'Category', 'city', 'created_at'
-            )
-            return Response({'patients': list(patients)}, status=200)
-
+            patients = Patient.objects.all().prefetch_related('categories')
+            serializer = PatientSerializer(patients, many=True)
+            return Response({'patients': serializer.data}, status=200)
         except Exception as e:
             return Response({'detail': str(e)}, status=500)
-        
+
+    def post(self, request, *args, **kwargs):
+        try:
+            data = request.data
+            
+            # Field validation
+            required_fields = ['FName', 'MName', 'SName', 'PatID', 'DOB', 'city']
+            if not all(field in data and data[field] for field in required_fields):
+                return Response({
+                    "detail": "All fields are required"
+                }, status=400)
+            
+            try:
+                # Convert PatID to integer
+                patient_id = int(data['PatID'])
+                
+                # Check if PatID already exists
+                if Patient.objects.filter(PatID=patient_id).exists():
+                    return Response({
+                        "detail": "A patient with this ID already exists"
+                    }, status=400)
+                
+                # Parse and validate date
+                dob_date = datetime.strptime(data['DOB'], '%Y-%m-%d').date()
+                today = date.today()
+                age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+                
+                # Prepare data for serializer
+                serializer_data = {
+                    'FName': data['FName'],
+                    'MName': data['MName'],
+                    'SName': data['SName'],
+                    'PatID': patient_id,
+                    'Age': age,
+                    'DOB': dob_date,
+                    'city': data['city'],
+                    'category_ids': data.get('category_ids', [])
+                }
+                
+                serializer = PatientSerializer(data=serializer_data)
+                if serializer.is_valid():
+                    patient = serializer.save()
+                    return Response({
+                        'detail': 'Patient registered successfully!',
+                        'id': patient.id
+                    }, status=201)
+                else:
+                    return Response({
+                        'detail': serializer.errors
+                    }, status=400)
+                
+            except ValueError as e:
+                if 'PatID' in str(e):
+                    return Response({
+                        "detail": "Patient ID must be a number"
+                    }, status=400)
+                else:
+                    return Response({
+                        "detail": "Invalid date format. Use YYYY-MM-DD"
+                    }, status=400)
+                
+        except Exception as e:
+            return Response({
+                'detail': str(e)
+            }, status=400)
+
 @csrf_exempt
 @permission_classes([AllowAny])
 def update_patient_credentials(request, patient_id):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            patient = get_object_or_404(Patient, PatID=patient_id)
+            
+            
+            if len(data) == 1 and 'category_ids' in data:
+                patient.categories.set(data['category_ids'])
+                return JsonResponse({'detail': 'Patient programs updated successfully'})
+            
+            # Otherwise, do a full update
+            fields = ['FName', 'MName', 'SName', 'DOB', 'city']
+            if not all(field in data for field in fields):
+                return JsonResponse({'detail': 'All fields are required for full update'}, status=400)
+            
+            try:
+                dob_date = datetime.strptime(data['DOB'], '%Y-%m-%d').date()
+                today = date.today()
+                new_age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+            except ValueError:
+                return JsonResponse({'detail': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
+            
+            patient.FName = data['FName']
+            patient.MName = data['MName']
+            patient.SName = data['SName']
+            patient.Age = new_age
+            patient.city = data['city']
+            patient.categories.set(data.get('category_ids', []))
+            patient.save()
+            
+            return JsonResponse({'detail': 'Patient data updated successfully'})
+            
         except json.JSONDecodeError:
             return JsonResponse({'detail': 'Invalid JSON format'}, status=400)
-
-        new_fname = data.get('fname')
-        new_mname = data.get('mname')
-        new_sname = data.get('sname')
-        new_dob = data.get('DOB')
-        new_city = data.get('city')
-        new_category = data.get('Category')
-        
-        try:
-            dob_date = datetime.strptime(new_dob, '%Y-%m-%d').date()
-            today = date.today()
-            new_age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
-        except ValueError:
-            return JsonResponse({'detail': 'Invalid date format. Use YYYY-MM-DD'}, status=400)
-            
-        if not all([new_fname, new_mname, new_sname, new_dob, new_city, new_category]):
-            return JsonResponse({'detail': 'All fields are required'}, status=400)
-        
-        try:
-            patient = get_object_or_404(Patient, patient_number=patient_id)
-            
-            patient.FName = new_fname
-            patient.MName = new_mname
-            patient.SName = new_sname
-            patient.Age = new_age
-            patient.city = new_city
-            patient.Category = new_category
-            
-            patient.save()
-
-            return JsonResponse({'detail': 'Patient data updated successfully'})
         except Exception as e:
             return JsonResponse({'detail': str(e)}, status=500)
 
@@ -338,6 +431,27 @@ class DoctorView(APIView):
                 serializer.save()
                 return Response(serializer.data, status=201)
             return Response(serializer.errors, status=400)
+            
+    def put(self, request):
+        try:
+            doctor = Doctor.objects.get(employee_id=request.data.get('employee_id'))
+            user = doctor.user
+            
+            # Update user information
+            user.first_name = request.data.get('firstName', user.first_name)
+            user.last_name = request.data.get('lastName', user.last_name)
+            user.email = request.data.get('email', user.email)
+            user.save()
+            
+            # Update doctor information
+            doctor.specialization = request.data.get('specialization', doctor.specialization)
+            doctor.is_active = request.data.get('is_active', doctor.is_active)
+            doctor.save()
+            
+            serializer = DoctorSerializer(doctor)
+            return Response(serializer.data)
+        except Doctor.DoesNotExist:
+            return Response({"detail": "Doctor not found"}, status=404)
 
 class CategoryView(APIView):
     permission_classes = [IsAuthenticated]
@@ -385,3 +499,25 @@ def doctor_stats(request):
         'active_doctors': active_doctors,
         'specializations': specializations
     })
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def admin_details(request):
+    try:
+        # Check if the requesting user is admin
+        admin_id = os.environ.get('AdminCreds')
+        if request.user.username != admin_id:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        if request.method == 'PUT':
+            email = request.data.get('email')
+            if email:
+                request.user.email = email
+                request.user.save()
+            
+        return Response({
+            'employee_id': request.user.username,
+            'email': request.user.email,
+        })
+    except Exception as e:
+        return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -7,8 +7,15 @@ const Header = ({ isAdmin = false, onMenuClick }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    const userStatus = localStorage.getItem('userStatus');
     localStorage.clear();
-    navigate('/');
+    
+    // Redirect based on user status
+    if (userStatus === 'system_admin') {
+      navigate('/master');
+    } else {
+      navigate('/');
+    }
   };
 
   return (

@@ -218,6 +218,12 @@ const AdminRegister = () => {
             )}
           </form>
         </div>
+        <div className="mt-6 text-center">
+            <span className="text-gray-600">Already Verified? </span>
+            <a href="/master" className="text-blue-600 hover:text-blue-700 font-medium">
+              Log in
+            </a>
+          </div>
       </div>
 
       {/* Password Modal */}
@@ -277,7 +283,9 @@ const AdminRegister = () => {
                 </button>
               </div>
             </form>
+            
           </div>
+          
         </div>
       )}
     </div>
