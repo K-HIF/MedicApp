@@ -33,6 +33,31 @@ Admincreds = os.environ.get('AdminCreds')
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+def register_admin(request):
+    try:
+        data = request.data
+        print(data)
+        username = data['employee_id']
+        email = data.get('email')
+        password = data.get('password')
+        
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "User already exists. Log in"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create(
+            username=username,
+            email = email,
+            password=make_password(password),
+        )
+        user.save()
+        return Response({"detail": "User created successfully!"}, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
 def register(request):
     try:
         data = request.data
@@ -41,7 +66,7 @@ def register(request):
         first_name = data.get('firstName')
         last_name = data.get('lastName')
         email = data.get('email')
-        specialization = data.get('specialization', '')  # Optional specialization
+        specialization = data.get('specialization', '')  
         
         if not all([username, email, first_name, last_name]):
             return Response({

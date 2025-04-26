@@ -76,7 +76,7 @@ const AdminRegister = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/backendapi/register/`,
+        `${import.meta.env.VITE_API_BASE_URL}/backendapi/admin-register/`,
         {
           method: "POST",
           headers: {
