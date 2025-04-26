@@ -40,9 +40,16 @@ axiosInstance.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${response.data.access}`;
         return axios(originalRequest);
       } catch (err) {
-        // If refresh token is expired, redirect to login
+        // Get user status before clearing storage
+        const userStatus = localStorage.getItem('userStatus');
         localStorage.clear();
-        window.location.href = '/';
+        
+        // Redirect based on user status
+        if (userStatus === 'system_admin') {
+          window.location.href = '/master';
+        } else {
+          window.location.href = '/';
+        }
         return Promise.reject(error);
       }
     }

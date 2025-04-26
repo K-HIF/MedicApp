@@ -7,23 +7,22 @@ class Patient(models.Model):
     MName = models.CharField(max_length=100)
     SName = models.CharField(max_length=100)
     Age = models.FloatField()
-    DOB = models.DateTimeField()
+    DOB = models.DateField()
     city = models.CharField(max_length=100)
-    Category = models.CharField(max_length=50)
-    
+    categories = models.ManyToManyField('Category', related_name='patients')
     created_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return (
             f"name: {self.FName} {self.MName} {self.SName}, age: {self.Age}, "
-            f"city: {self.city}, Category: {self.Category}, PatID: {self.PatID}, created_at: {self.created_at}"
+            f"city: {self.city}, PatID: {self.PatID}, created_at: {self.created_at}"
         )
 
 class Doctor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     employee_id = models.CharField(max_length=50, unique=True)
     specialization = models.CharField(max_length=100, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

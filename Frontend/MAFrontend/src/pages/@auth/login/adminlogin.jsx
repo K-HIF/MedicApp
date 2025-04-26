@@ -247,6 +247,12 @@ const ALogin = () => {
             )}
           </form>
         </div>
+        <div className="mt-6 text-center">
+            <span className="text-gray-600">Unverified? </span>
+            <a href="/admin-register" className="text-blue-600 hover:text-blue-700 font-medium">
+              verify
+            </a>
+          </div>
       </div>
 
       
@@ -291,6 +297,7 @@ const ALogin = () => {
               Close
             </button>
           </div>
+          
         </div>
       )}
     </div>

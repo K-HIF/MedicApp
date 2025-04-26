@@ -16,10 +16,13 @@ const DashboardOverview = () => {
         const patientsResponse = await axiosInstance.get('/backendapi/patient/');
         const patients = patientsResponse.data.patients;
 
-        const categoryCount = patients.reduce((acc, patient) => {
-          acc[patient.Category] = (acc[patient.Category] || 0) + 1;
-          return acc;
-        }, {});
+        // Update category count calculation to use the categories array
+        const categoryCount = {};
+        patients.forEach(patient => {
+          patient.categories.forEach(category => {
+            categoryCount[category.name] = (categoryCount[category.name] || 0) + 1;
+          });
+        });
 
         setStats({
           totalPatients: patients.length,
@@ -55,14 +58,14 @@ const DashboardOverview = () => {
           <p className="text-3xl font-bold text-gray-900">{stats.totalPatients}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-gray-500 text-sm font-medium mb-2">Patient Categories</h3>
+          <h3 className="text-gray-500 text-sm font-medium mb-2">Programs</h3>
           <p className="text-3xl font-bold text-gray-900">{Object.keys(stats.patientsByCategory).length}</p>
         </div>
       </div>
 
-      {/* Category Distribution */}
+      {/* Program Distribution */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-4">My Patients by Category</h2>
+        <h2 className="text-xl font-semibold mb-4">My Patients by Program</h2>
         <div className="space-y-4">
           {Object.entries(stats.patientsByCategory).map(([category, count]) => (
             <div key={category} className="relative">
@@ -89,7 +92,7 @@ const DashboardOverview = () => {
             <thead>
               <tr className="bg-gray-50">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Programs</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
               </tr>
@@ -100,7 +103,18 @@ const DashboardOverview = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     {`${patient.FName} ${patient.MName} ${patient.SName}`}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">{patient.Category}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-wrap gap-1">
+                      {patient.categories.map(category => (
+                        <span 
+                          key={category.id} 
+                          className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800"
+                        >
+                          {category.name}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">{patient.city}</td>
                   <td className="px-6 py-4 whitespace-nowrap">{patient.Age}</td>
                 </tr>

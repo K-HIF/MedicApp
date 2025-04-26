@@ -3,9 +3,13 @@ from .models import Patient, Doctor, Category
 
 @admin.register(Patient)
 class PatientAdmin(admin.ModelAdmin):
-    list_display = ('PatID', 'FName', 'SName', 'Age', 'Category', 'city', 'created_at')
-    search_fields = ('PatID', 'FName', 'SName', 'Category')
-    list_filter = ('Category', 'city')
+    list_display = ('PatID', 'FName', 'SName', 'Age', 'get_categories', 'city', 'created_at')
+    search_fields = ('PatID', 'FName', 'SName', 'categories__name')
+    list_filter = ('categories', 'city')
+
+    def get_categories(self, obj):
+        return ", ".join([category.name for category in obj.categories.all()])
+    get_categories.short_description = 'Programs'
 
 @admin.register(Doctor)
 class DoctorAdmin(admin.ModelAdmin):
