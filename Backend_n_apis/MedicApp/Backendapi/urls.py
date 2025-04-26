@@ -11,5 +11,12 @@ urlpatterns = [
     path('verify-admin/', views.verify_admin, name="verify-admin"),
     path('patient/', views.PatientRegistrationView.as_view(), name="patient"),
     path('patient/<str:patient_id>/credentials/', views.update_patient_credentials, name='update_patient_credentials'),
-
+    
+    # Doctor endpoints
+    path('doctors/', views.DoctorView.as_view(), name='doctors'),
+    path('doctors/stats/', views.doctor_stats, name='doctor_stats'),
+    
+    # Category endpoints
+    path('categories/', views.CategoryView.as_view(), name='categories'),
+    path('categories/<int:pk>/', views.category_detail, name='category_detail'),
 ]

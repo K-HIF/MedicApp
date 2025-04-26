@@ -44,13 +44,21 @@ const Login = () => {
       );
 
       const data = await response.json();
-
       if (response.ok) {
         localStorage.setItem("accessToken", data.access);
         localStorage.setItem("refreshToken", data.refresh);
-        navigate("/dashboard");
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("userStatus", data.user.status || '');
+        localStorage.setItem("userEmail", data.user.email || '');
+        
+        // Route based on user status
+        if (data.user && data.user.status === "system_admin") {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
-        setError(data.error || "Invalid credentials");
+        setError(data.detail || "Invalid credentials");
       }
     } catch (err) {
       console.error("Fetch Error:", err);
