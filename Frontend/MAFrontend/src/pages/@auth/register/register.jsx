@@ -38,7 +38,7 @@ const Register = () => {
     
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/backendapi/register-doc/`,
+        `${import.meta.env.VITE_API_BASE_URL}/backendapi/register/`,
         {
           method: "POST",
           headers: {

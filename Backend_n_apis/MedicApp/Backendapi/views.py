@@ -37,21 +37,41 @@ def register(request):
     try:
         data = request.data
         
-
         username = data['employee_id']
+        first_name = data.get('firstName')
+        last_name = data.get('lastName')
         email = data.get('email')
-        password = data['password']
+        specialization = data.get('specialization', '')  # Optional specialization
+        
+        if not all([username, email, first_name, last_name]):
+            return Response({
+                "detail": "Employee ID, email, first name, and last name are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         if User.objects.filter(username=username).exists():
             return Response({"detail": "User already exists. Log in"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Create user with inactive status (pending admin verification)
         user = User.objects.create(
             username=username,
-            email = email,
-            password=make_password(password),
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            password=make_password('temp_unused_password'),  # Temporary password - will be replaced upon verification
+            is_active=False  # User cannot log in until verified by admin
         )
-        user.save()
-        return Response({"detail": "User created successfully!"}, status=status.HTTP_201_CREATED)
+        
+        # Create doctor profile for the user
+        doctor = Doctor.objects.create(
+            user=user,
+            employee_id=username,
+            specialization=specialization,
+            is_active=False  # Doctor is inactive until verified
+        )
+        
+        return Response({
+            "detail": "Registration successful! Your account is pending admin verification."
+        }, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -66,6 +86,7 @@ def registerdr(request):
         first_name = data.get('firstName')
         last_name = data.get('lastName')
         specialization = data.get('specialization')
+        is_verified = data.get('is_verified', False)  
 
         if not all([employee_id, email, first_name, last_name]):
             return Response({
@@ -78,15 +99,16 @@ def registerdr(request):
                 "detail": "A doctor with this employee ID already exists"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Generate a random password
-        password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        # Generate a random password if this is a verified registration
+        password = ''.join(random.choices(string.ascii_letters + string.digits, k=10)) if is_verified else None
         
         user = User.objects.create(
             username=employee_id,
             email=email,
             first_name=first_name,
             last_name=last_name,
-            password=make_password(password)
+            password=make_password(password) if is_verified else make_password('temp_unused_password'),
+            is_active=is_verified  # Only activate user if verified
         )
 
         # Create doctor profile
@@ -94,79 +116,28 @@ def registerdr(request):
             user=user,
             employee_id=employee_id,
             specialization=specialization,
-            is_active=False  # New doctors start as unverified
+            is_active=is_verified  # Only activate doctor if verified
         )
 
-        # Send login credentials via email
-        try:
-            send_mail(
-                'Your MedicApp Account Credentials',
-                f'Hello {first_name},\n\nYour MedicApp account has been created. Here are your login credentials:\n\nEmployee ID: {employee_id}\nPassword: {password}\n\nPlease log in and change your password.',
-                settings.EMAIL_HOST_USER,
-                [email],
-                fail_silently=False,
-            )
-        except Exception as e:
-            # Log the error but don't fail the registration
-            print(f"Error sending email: {str(e)}")
+        # Send login credentials via email only if this is a verified registration
+        if is_verified:
+            try:
+                send_mail(
+                    'Your MedicApp Account Credentials',
+                    f'Hello {first_name},\n\nYour MedicApp account has been created. Here are your login credentials:\n\nEmployee ID: {employee_id}\nPassword: {password}\n\nPlease log in and change your password.',
+                    settings.EMAIL_HOST_USER,
+                    [email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                print(f"Error sending email: {str(e)}")
 
         return Response({
-            "detail": "Doctor registered successfully! Waiting for verification."
+            "detail": "Doctor registered successfully!" if is_verified else "Doctor registered successfully! Waiting for verification."
         }, status=status.HTTP_201_CREATED)
         
     except Exception as e:
         return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def verify_doctor(request, doctor_id):
-    try:
-        doctor = Doctor.objects.select_related('user').get(employee_id=doctor_id)
-        
-        # Check if the requesting user is admin
-        admin_id = os.environ.get('AdminCreds')
-        if request.user.username != admin_id:
-            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
-        
-        # Get the temporary password
-        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-        
-        # Activate the doctor and user
-        doctor.is_active = True
-        doctor.save()
-        
-        doctor.user.is_active = True
-        doctor.user.password = make_password(temp_password)
-        doctor.user.save()
-        
-        # Send the credentials email
-        email_content = f"""
-        Welcome to MedicApp!
-        
-        Your account has been verified. You can now login with the following credentials:
-        Employee ID: {doctor.employee_id}
-        Password: {temp_password}
-        
-        Please login using these credentials and change your password after first login.
-        """
-
-        send_mail(
-            'MedicApp Account Verified',
-            email_content,
-            'frandelwanjawa19@gmail.com',
-            [doctor.user.email],
-            fail_silently=False,
-        )
-
-        return Response({
-            "detail": "Doctor verified successfully! Credentials have been sent."
-        })
-        
-    except Doctor.DoesNotExist:
-        return Response({"detail": "Doctor not found"}, status=404)
-    except Exception as e:
-        return Response({"detail": str(e)}, status=500)
-    
     
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -417,9 +388,21 @@ class DoctorView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
+        # Check if the current user is an admin
+        is_admin = request.user.username == os.environ.get('AdminCreds')
+        
+        # Retrieve all doctors with their related user info
         doctors = Doctor.objects.select_related('user').all()
+        
+       
         serializer = DoctorSerializer(doctors, many=True)
-        return Response(serializer.data)
+        data = serializer.data
+        
+        # Add a field to indicate if the doctor needs verification
+        for doctor in data:
+            doctor['needs_verification'] = not doctor['is_active']
+            
+        return Response(data)
     
     def post(self, request):
         try:
@@ -521,3 +504,60 @@ def admin_details(request):
         })
     except Exception as e:
         return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def verify_user(request, user_id):
+    try:
+        # Get the doctor's user account
+        user = User.objects.get(username=user_id)
+        
+        # Check if the requesting user is admin
+        admin_id = os.environ.get('AdminCreds')
+        if request.user.username != admin_id:
+            return Response({"detail": "Not authorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Generate a secure password
+        temp_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        
+        # Activate the user account
+        user.is_active = True
+        user.password = make_password(temp_password)
+        user.save()
+        
+        
+        try:
+            doctor = Doctor.objects.get(employee_id=user_id)
+            doctor.is_active = True
+            doctor.save()
+        except Doctor.DoesNotExist:
+            
+            pass
+        
+        # Send the credentials email
+        email_content = f"""
+        Welcome to MedicApp!
+        
+        Your account has been verified. You can now login with the following credentials:
+        Employee ID: {user.username}
+        Password: {temp_password}
+        
+        Please login using these credentials and change your password after first login.
+        """
+
+        send_mail(
+            'MedicApp Account Verified',
+            email_content,
+            settings.EMAIL_HOST_USER,
+            [user.email],
+            fail_silently=False,
+        )
+
+        return Response({
+            "detail": "Doctor verified successfully! Credentials have been sent."
+        })
+        
+    except User.DoesNotExist:
+        return Response({"detail": "User not found"}, status=404)
+    except Exception as e:
+        return Response({"detail": str(e)}, status=500)
